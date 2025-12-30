@@ -1,6 +1,7 @@
 import type { Stats } from "fs";
 import fs from "fs/promises";
 import path from "path";
+import { createHash } from "crypto";
 
 const MARKDOWN_EXTENSIONS = new Set([".md", ".mdx"]);
 
@@ -56,6 +57,10 @@ function isMarkdown(filePath: string): boolean {
   return MARKDOWN_EXTENSIONS.has(path.extname(filePath).toLowerCase());
 }
 
+function hashString(str: string): string {
+  return createHash("sha256").update(str).digest("hex").substring(0, 32);
+}
+
 async function createEntry(
   absolutePath: string,
   rootDir: string,
@@ -68,7 +73,7 @@ async function createEntry(
   const title = extractTitle(content) || path.parse(absolutePath).name;
 
   return {
-    id: relativePath,
+    id: hashString(relativePath),
     title,
     content,
     date: fileStats.mtime.toISOString(),
