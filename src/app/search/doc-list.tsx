@@ -11,7 +11,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-function DocCard({ doc }: { doc: Doc }) {
+type DocWithScore = Doc & {
+  score: number;
+};
+
+function DocCard({ doc }: { doc: DocWithScore }) {
   const [expanded, setExpanded] = useState(false);
 
   const formatDate = (dateString: string) => {
@@ -34,7 +38,12 @@ function DocCard({ doc }: { doc: Doc }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-4 mb-1">
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-base mb-0.5">{doc.subject}</h3>
+              <h3 className="font-semibold text-base mb-0.5">
+                {doc.subject}{" "}
+                <span className="text-xs">
+                  (Score: <strong>{doc.score}</strong>)
+                </span>
+              </h3>
               <p className="text-xs text-muted-foreground">{doc.from}</p>
             </div>
             <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -80,7 +89,7 @@ function DocCard({ doc }: { doc: Doc }) {
   );
 }
 
-export function DocList({ docs }: { docs: Doc[] }) {
+export function DocList({ docs }: { docs: DocWithScore[] }) {
   if (docs.length === 0) {
     return (
       <div className="text-center py-12">
