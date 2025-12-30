@@ -6,7 +6,8 @@ import { PerPageSelector } from "./per-page-selector";
 import { loadChats, loadMemories } from "@/lib/persistence-layer";
 import { CHAT_LIMIT } from "../page";
 import { SideBar } from "@/components/side-bar";
-import { loadVaultDocs, searchWithBM25 } from "@/app/search";
+import { searchWithBM25, loadOrGenerateEmbeddings } from "@/app/search";
+import { loadVaultEntries } from "@/lib/vault-loader";
 
 export default async function SearchPage(props: {
   searchParams: Promise<{ q?: string; page?: string; perPage?: string }>;
@@ -16,22 +17,21 @@ export default async function SearchPage(props: {
   const page = Number(searchParams.page) || 1;
   const perPage = Number(searchParams.perPage) || 10;
 
-  const allDocs = await loadVaultDocs();
+  const vaultPath = process.env.WORKING_KNOWLEDGE_VAULT!;
+  const allDocs = await loadVaultEntries(vaultPath);
+  const embeddings = await loadOrGenerateEmbeddings(allDocs);
+
+  console.log("Docs embeddings loaded:", embeddings.length);
 
   const docsWithScores = searchWithBM25(
     query.toLowerCase().split(" "),
     allDocs
   );
 
-  // Transform docs to match the expected format
+  // Adding score to docs
   const transformedDocs = docsWithScores
     .map(({ doc, score }) => ({
-      id: doc.id,
-      from: doc.from,
-      subject: doc.subject,
-      preview: doc.content.substring(0, 100) + "...",
-      content: doc.content,
-      date: doc.timestamp,
+      ...doc,
       score,
     }))
     .sort((a, b) => b.score - a.score);
