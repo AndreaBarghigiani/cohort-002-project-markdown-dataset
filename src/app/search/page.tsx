@@ -6,7 +6,11 @@ import { PerPageSelector } from "./per-page-selector";
 import { loadChats, loadMemories } from "@/lib/persistence-layer";
 import { CHAT_LIMIT } from "../page";
 import { SideBar } from "@/components/side-bar";
-import { searchWithBM25, loadOrGenerateEmbeddings } from "@/app/search";
+import {
+  searchWithBM25,
+  searchWithEmbeddings,
+  loadOrGenerateEmbeddings,
+} from "@/app/search";
 import { loadVaultEntries } from "@/lib/vault-loader";
 
 export default async function SearchPage(props: {
@@ -23,13 +27,15 @@ export default async function SearchPage(props: {
 
   console.log("Docs embeddings loaded:", embeddings.length);
 
-  const docsWithScores = searchWithBM25(
+  const docsWithScoresBM25 = searchWithBM25(
     query.toLowerCase().split(" "),
     allDocs
   );
 
+  const docsWithScoresSemantic = await searchWithEmbeddings(query, allDocs);
+
   // Adding score to docs
-  const transformedDocs = docsWithScores
+  const transformedDocs = docsWithScoresSemantic
     .map(({ doc, score }) => ({
       ...doc,
       score,
@@ -38,7 +44,7 @@ export default async function SearchPage(props: {
 
   // Filter docs based on search query
   const filteredDocs = query
-    ? transformedDocs.filter((email) => email.score > 0)
+    ? transformedDocs.filter((doc) => doc.score > 0)
     : transformedDocs;
 
   const totalPages = Math.ceil(filteredDocs.length / perPage);

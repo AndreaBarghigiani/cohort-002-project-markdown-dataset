@@ -2,7 +2,7 @@ import BM25 from "okapibm25";
 import { Doc } from "@/types";
 import path from "path";
 import fs from "fs/promises";
-import { embedMany } from "ai";
+import { embed, embedMany, cosineSimilarity } from "ai";
 import { google } from "@ai-sdk/google";
 
 type EmbedDoc = {
@@ -23,6 +23,8 @@ export function searchWithBM25(keywords: string[], docs: Doc[]) {
 const CACHE_DIR = path.join(process.cwd(), "data", "embeddings");
 
 const CACHE_KEY = "google-text-embedding-004";
+
+const EMBEDDING_MODEL = google.textEmbeddingModel("text-embedding-004");
 
 const getEmbeddingFilePath = (id: string) =>
   path.join(CACHE_DIR, `${CACHE_KEY}-${id}.json`);
@@ -60,7 +62,7 @@ export async function loadOrGenerateEmbeddings(
       );
 
       const { embeddings } = await embedMany({
-        model: google.textEmbeddingModel("text-embedding-004"),
+        model: EMBEDDING_MODEL,
         values: batch.map((doc) => `${doc.subject} ${doc.content}`),
       });
 
@@ -81,4 +83,32 @@ export async function loadOrGenerateEmbeddings(
   }
 
   return results;
+}
+
+export async function searchWithEmbeddings(query: string, docs: Doc[]) {
+  const embedDocs = await loadOrGenerateEmbeddings(docs);
+  const { embedding: embedQuery } = await embed({
+    model: EMBEDDING_MODEL,
+    value: query,
+  });
+
+  console.log("original query in embeddings", query);
+
+  const results = embedDocs.map(({ id, embedding }) => {
+    const doc = docs.find((e) => e.id === id)!;
+    const score = cosineSimilarity(embedQuery, embedding);
+
+    return { score, doc };
+  });
+
+  console.log(
+    "Results:",
+    results.length,
+    "first",
+    { subject: results[0].doc.subject, score: results[0].score },
+    "second",
+    { subject: results[1].doc.subject, score: results[1].score }
+  );
+
+  return results.sort((a, b) => b.score - a.score);
 }
