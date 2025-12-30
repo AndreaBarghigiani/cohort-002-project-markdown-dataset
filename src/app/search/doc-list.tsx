@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MailIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { FileTextIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { useState } from "react";
 
 type Doc = {
@@ -32,7 +32,7 @@ function DocCard({ doc }: { doc: Doc }) {
     <Card className="p-4 hover:shadow-md transition-shadow">
       <div className="flex items-start gap-3">
         <div className="mt-0.5 p-1.5 rounded-full bg-primary/10">
-          <MailIcon className="h-4 w-4 text-primary" />
+          <FileTextIcon className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-4 mb-1">
