@@ -6,29 +6,7 @@ import { PerPageSelector } from "./per-page-selector";
 import { loadChats, loadMemories } from "@/lib/persistence-layer";
 import { CHAT_LIMIT } from "../page";
 import { SideBar } from "@/components/side-bar";
-import { loadVaultEntries } from "@/lib/vault-loader";
-
-interface VaultDoc {
-  id: string;
-  from: string;
-  subject: string;
-  body: string;
-  timestamp: string;
-}
-
-async function loadVaultDocs(): Promise<VaultDoc[]> {
-  const vaultPath = process.env.WORKING_KNOWLEDGE_VAULT!;
-
-  const entries = await loadVaultEntries(vaultPath);
-
-  return entries.map((entry) => ({
-    id: entry.id,
-    from: entry.relativePath,
-    subject: entry.title,
-    body: entry.content,
-    timestamp: entry.date,
-  }));
-}
+import { loadVaultDocs, searchWithBM25 } from "@/app/search";
 
 export default async function SearchPage(props: {
   searchParams: Promise<{ q?: string; page?: string; perPage?: string }>;
@@ -40,26 +18,27 @@ export default async function SearchPage(props: {
 
   const allDocs = await loadVaultDocs();
 
+  const docsWithScores = searchWithBM25(
+    query.toLowerCase().split(" "),
+    allDocs
+  );
+
   // Transform docs to match the expected format
-  const transformedDocs = allDocs
-    .map((doc) => ({
+  const transformedDocs = docsWithScores
+    .map(({ doc, score }) => ({
       id: doc.id,
       from: doc.from,
       subject: doc.subject,
-      preview: doc.body.substring(0, 100) + "...",
-      content: doc.body,
+      preview: doc.content.substring(0, 100) + "...",
+      content: doc.content,
       date: doc.timestamp,
+      score,
     }))
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    .sort((a, b) => b.score - a.score);
 
   // Filter docs based on search query
   const filteredDocs = query
-    ? transformedDocs.filter(
-        (doc) =>
-          doc.subject.toLowerCase().includes(query.toLowerCase()) ||
-          doc.from.toLowerCase().includes(query.toLowerCase()) ||
-          doc.content.toLowerCase().includes(query.toLowerCase())
-      )
+    ? transformedDocs.filter((email) => email.score > 0)
     : transformedDocs;
 
   const totalPages = Math.ceil(filteredDocs.length / perPage);
