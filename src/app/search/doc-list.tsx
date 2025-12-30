@@ -1,18 +1,15 @@
 "use client";
 
+import { Doc } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileTextIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import {
+  FileTextIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  MailIcon,
+} from "lucide-react";
 import { useState } from "react";
-
-type Doc = {
-  id: string;
-  from: string;
-  subject: string;
-  preview: string;
-  content: string;
-  date: string;
-};
 
 function DocCard({ doc }: { doc: Doc }) {
   const [expanded, setExpanded] = useState(false);

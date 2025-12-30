@@ -2,24 +2,17 @@ import type { Stats } from "fs";
 import fs from "fs/promises";
 import path from "path";
 import { createHash } from "crypto";
+import { Doc } from "@/types";
 
 const MARKDOWN_EXTENSIONS = new Set([".md", ".mdx"]);
 
-export type VaultEntry = {
-  id: string;
-  title: string;
-  content: string;
-  date: string;
-  relativePath: string;
-};
-
-export async function loadVaultEntries(rootDir: string): Promise<VaultEntry[]> {
+export async function loadVaultEntries(rootDir: string): Promise<Doc[]> {
   const resolvedRoot = await fs.realpath(rootDir);
   const visited = new Set<string>([resolvedRoot]);
 
-  async function walk(directory: string): Promise<VaultEntry[]> {
+  async function walk(directory: string): Promise<Doc[]> {
     const dirents = await fs.readdir(directory, { withFileTypes: true });
-    const entries: VaultEntry[] = [];
+    const entries: Doc[] = [];
 
     for (const dirent of dirents) {
       const absolutePath = path.join(directory, dirent.name);
@@ -65,19 +58,20 @@ async function createEntry(
   absolutePath: string,
   rootDir: string,
   stats?: Stats
-): Promise<VaultEntry> {
+): Promise<Doc> {
   const fileStats = stats ?? (await fs.stat(absolutePath));
   const content = await fs.readFile(absolutePath, "utf-8");
   const relativePath =
     path.relative(rootDir, absolutePath) || path.basename(absolutePath);
-  const title = extractTitle(content) || path.parse(absolutePath).name;
+  const subject = extractTitle(content) || path.parse(absolutePath).name;
 
   return {
     id: hashString(relativePath),
-    title,
+    subject,
     content,
+    preview: content.substring(0, 100) + "...",
     date: fileStats.mtime.toISOString(),
-    relativePath,
+    from: relativePath,
   };
 }
 
