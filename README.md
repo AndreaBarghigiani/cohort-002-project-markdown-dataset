@@ -6,6 +6,11 @@ This is the project workspace for the [**Build a Personal Assistant in TypeScrip
 
 This fork is a work in progress to adapt the project to use markdown files instead of json files that describes emails.
 
+In order to make it work, you need to:
+
+- set the `WORKING_KNOWLEDGE_VAULT` environment variable to the path of your markdown vault
+- run `pnpm run dev`
+
 ## What You'll Build
 
 During this workshop, you'll add these capabilities to your assistant:
