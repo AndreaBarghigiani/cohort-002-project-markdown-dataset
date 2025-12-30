@@ -2,6 +2,10 @@
 
 This is the project workspace for the [**Build a Personal Assistant in TypeScript**](https://www.aihero.dev/cohorts/build-your-own-ai-personal-assistant-in-typescript) workshop. You'll implement techniques learned in the skill-building exercises here to build a functional AI assistant.
 
+## Changes in this fork
+
+This fork is a work in progress to adapt the project to use markdown files instead of json files that describes emails.
+
 ## What You'll Build
 
 During this workshop, you'll add these capabilities to your assistant:
