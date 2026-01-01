@@ -6,11 +6,7 @@ import { PerPageSelector } from "./per-page-selector";
 import { loadChats, loadMemories } from "@/lib/persistence-layer";
 import { CHAT_LIMIT } from "../page";
 import { SideBar } from "@/components/side-bar";
-import {
-  searchWithBM25,
-  searchWithEmbeddings,
-  loadOrGenerateEmbeddings,
-} from "@/app/search";
+import { searchWithRRF } from "@/app/search";
 import { loadVaultEntries } from "@/lib/vault-loader";
 
 export default async function SearchPage(props: {
@@ -23,19 +19,11 @@ export default async function SearchPage(props: {
 
   const vaultPath = process.env.WORKING_KNOWLEDGE_VAULT!;
   const allDocs = await loadVaultEntries(vaultPath);
-  const embeddings = await loadOrGenerateEmbeddings(allDocs);
 
-  console.log("Docs embeddings loaded:", embeddings.length);
-
-  const docsWithScoresBM25 = searchWithBM25(
-    query.toLowerCase().split(" "),
-    allDocs
-  );
-
-  const docsWithScoresSemantic = await searchWithEmbeddings(query, allDocs);
+  const docsWithScoresRRF = await searchWithRRF(query, allDocs);
 
   // Adding score to docs
-  const transformedDocs = docsWithScoresSemantic
+  const transformedDocs = docsWithScoresRRF
     .map(({ doc, score }) => ({
       ...doc,
       score,

@@ -2,29 +2,61 @@ import BM25 from "okapibm25";
 import { Doc } from "@/types";
 import path from "path";
 import fs from "fs/promises";
-import { embed, embedMany, cosineSimilarity } from "ai";
+import { embed, embedMany, cosineSimilarity, generateObject } from "ai";
 import { google } from "@ai-sdk/google";
+import { z } from "zod";
 
 type EmbedDoc = {
   id: string;
   embedding: number[];
 };
 
-export function searchWithBM25(keywords: string[], docs: Doc[]) {
-  const corpus = docs.map((doc) => `${doc.subject} ${doc.content}`);
+type RankingDoc = {
+  doc: Doc;
+  score: number;
+};
 
-  const scores: number[] = (BM25 as any)(corpus, keywords);
+async function generateKeywords(query: string): Promise<string[]> {
+  const result = await generateObject({
+    model: google("gemini-2.5-flash-lite"),
+    system:
+      "Extract relevant keywords from the user's search query. Return 3-7 keywords that would be effective for BM25 search.",
+    schema: z.object({ keywords: z.array(z.string()) }),
+    prompt: `Extract keywords from this search query: ${query}`,
+  });
 
-  return scores
-    .map((score, idx) => ({ score, doc: docs[idx] }))
-    .sort((a, b) => b.score - a.score);
+  return result.object.keywords;
 }
 
 const CACHE_DIR = path.join(process.cwd(), "data", "embeddings");
-
 const CACHE_KEY = "google-text-embedding-004";
-
 const EMBEDDING_MODEL = google.textEmbeddingModel("text-embedding-004");
+const RRF_K = 60;
+
+function reciprocalRankFusion(rankings: RankingDoc[][]): RankingDoc[] {
+  const rrfScores = new Map<string, number>();
+  const documentMap = new Map<string, RankingDoc>();
+
+  rankings.forEach((ranking) => {
+    ranking.forEach((item, rank) => {
+      const currentScore = rrfScores.get(item.doc.id) || 0;
+
+      const contribution = 1 / (RRF_K + rank);
+      rrfScores.set(item.doc.id, currentScore + contribution);
+
+      documentMap.set(item.doc.id, item);
+    });
+  });
+
+  return Array.from(rrfScores.entries())
+    .sort(([, scoreA], [, scoreB]) => scoreB - scoreA)
+    .map(([docId, score]) => {
+      return {
+        doc: documentMap.get(docId)!.doc,
+        score,
+      };
+    });
+}
 
 const getEmbeddingFilePath = (id: string) =>
   path.join(CACHE_DIR, `${CACHE_KEY}-${id}.json`);
@@ -85,14 +117,25 @@ export async function loadOrGenerateEmbeddings(
   return results;
 }
 
+/* SEARCH FUNCTIONS */
+export async function searchWithBM25(query: string, docs: Doc[]) {
+  const keywords = await generateKeywords(query);
+  console.log("generated keywords for BM25:", keywords);
+  const corpus = docs.map((doc) => `${doc.subject} ${doc.content}`);
+
+  const scores: number[] = (BM25 as any)(corpus, keywords);
+
+  return scores
+    .map((score, idx) => ({ score, doc: docs[idx] }))
+    .sort((a, b) => b.score - a.score);
+}
+
 export async function searchWithEmbeddings(query: string, docs: Doc[]) {
   const embedDocs = await loadOrGenerateEmbeddings(docs);
   const { embedding: embedQuery } = await embed({
     model: EMBEDDING_MODEL,
     value: query,
   });
-
-  console.log("original query in embeddings", query);
 
   const results = embedDocs.map(({ id, embedding }) => {
     const doc = docs.find((e) => e.id === id)!;
@@ -101,14 +144,21 @@ export async function searchWithEmbeddings(query: string, docs: Doc[]) {
     return { score, doc };
   });
 
-  console.log(
-    "Results:",
-    results.length,
-    "first",
-    { subject: results[0].doc.subject, score: results[0].score },
-    "second",
-    { subject: results[1].doc.subject, score: results[1].score }
-  );
-
   return results.sort((a, b) => b.score - a.score);
+}
+
+export async function searchWithRRF(
+  query: string,
+  docs: Doc[]
+): Promise<RankingDoc[]> {
+  const bm25SearchResults = await searchWithBM25(query, docs);
+
+  const embeddingsSearchResults = await searchWithEmbeddings(query, docs);
+
+  const rrfSearchResults = reciprocalRankFusion([
+    bm25SearchResults,
+    embeddingsSearchResults,
+  ]);
+
+  return rrfSearchResults;
 }
