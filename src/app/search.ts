@@ -118,9 +118,21 @@ export async function loadOrGenerateEmbeddings(
 }
 
 /* SEARCH FUNCTIONS */
-export async function searchWithBM25(query: string, docs: Doc[]) {
+export async function searchWithBM25KeywordGeneration(
+  query: string,
+  docs: Doc[]
+) {
   const keywords = await generateKeywords(query);
   console.log("generated keywords for BM25:", keywords);
+  const corpus = docs.map((doc) => `${doc.subject} ${doc.content}`);
+
+  const scores: number[] = (BM25 as any)(corpus, keywords);
+
+  return scores
+    .map((score, idx) => ({ score, doc: docs[idx] }))
+    .sort((a, b) => b.score - a.score);
+}
+export async function searchWithBM25(keywords: string[], docs: Doc[]) {
   const corpus = docs.map((doc) => `${doc.subject} ${doc.content}`);
 
   const scores: number[] = (BM25 as any)(corpus, keywords);
@@ -151,7 +163,7 @@ export async function searchWithRRF(
   query: string,
   docs: Doc[]
 ): Promise<RankingDoc[]> {
-  const bm25SearchResults = await searchWithBM25(query, docs);
+  const bm25SearchResults = await searchWithBM25KeywordGeneration(query, docs);
 
   const embeddingsSearchResults = await searchWithEmbeddings(query, docs);
 
