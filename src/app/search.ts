@@ -33,7 +33,7 @@ const CACHE_KEY = "google-text-embedding-004";
 const EMBEDDING_MODEL = google.textEmbeddingModel("text-embedding-004");
 const RRF_K = 60;
 
-function reciprocalRankFusion(rankings: RankingDoc[][]): RankingDoc[] {
+export function reciprocalRankFusion(rankings: RankingDoc[][]): RankingDoc[] {
   const rrfScores = new Map<string, number>();
   const documentMap = new Map<string, RankingDoc>();
 
